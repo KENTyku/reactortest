@@ -3,6 +3,7 @@ package ru.kentyku.reactortest;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
 
 @SpringBootTest
 class ReactortestApplicationTests {
@@ -25,5 +26,17 @@ class ReactortestApplicationTests {
         ints.subscribe(
                 i -> System.out.println(i), error -> System.err.println("Error: " + error)
         );
+    }
+
+    @Test
+    void checkMap(){
+        Flux<Cat> cats=Flux.just(new Cat("Barsik",1),
+                new Cat("Vasia",3));
+        Flux<String> names=cats.map(cat->cat.getName());
+
+        StepVerifier.create(names)
+                .expectNext("Barsik", "Vasia")
+                .expectComplete().verify();
+        names.subscribe(i->System.out.println(i));
     }
 }

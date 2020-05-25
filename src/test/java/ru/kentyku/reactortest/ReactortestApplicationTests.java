@@ -93,6 +93,8 @@ class ReactortestApplicationTests {
                     return n;
                 })
                 .onErrorReturn("BarsikAfterError");
+
+
         resultMono.subscribe(n-> System.out.println(n));
 
         StepVerifier.create(name)
@@ -102,10 +104,33 @@ class ReactortestApplicationTests {
         StepVerifier.create(resultMono)
                 .expectNext("BarsikAfterError")
                 .expectComplete()
-
-//                .expectError(RuntimeException.class)
-//                .expectErrorMessage("Mono failed")
                 .verify();
 
     }
+
+    @Test
+
+    void throwError(){
+        Mono<Cat> cat=Mono.just(new Cat("Barsik", 1));
+        Mono<String> name = cat.map(c -> c.getName());
+
+        Mono<String> resultMono = name
+                .map(n -> n.concat("Test"))
+                .map(n -> {
+                    if (Objects.equals(n, "BarsikTest")) {
+                        throw new RuntimeException("Mono failed");
+                    }
+                    return n;
+                });
+
+        StepVerifier.create(name)
+                .expectNext("Barsik")
+                .expectComplete();
+
+        StepVerifier.create(resultMono)
+//                .expectError(RuntimeException.class)
+                .expectErrorMessage("Mono failed")
+                .verify();
+    }
+
 }

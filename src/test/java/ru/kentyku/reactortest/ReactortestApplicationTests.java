@@ -1,9 +1,13 @@
 package ru.kentyku.reactortest;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.target.EmptyTargetSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+
+import java.util.Objects;
 
 @SpringBootTest
 class ReactortestApplicationTests {
@@ -38,5 +42,70 @@ class ReactortestApplicationTests {
                 .expectNext("Barsik", "Vasia")
                 .expectComplete().verify();
         names.subscribe(i->System.out.println(i));
+    }
+
+    @Test
+    void checkDefer(){
+        Mono<Cat> cat=Mono.just(new Cat("Barsik", 1));
+        Mono<String> name = cat.map(c -> c.getName());
+
+        Mono<String> defMono = Mono.defer(() -> name.map(n -> n + "Test"));
+
+        StepVerifier.create(defMono)
+                .expectNext("BarsikTest")
+                .expectComplete().verify();
+        defMono.subscribe(i->System.out.println(i));
+    }
+
+    @Test
+
+    void checkFromRunnableAndThen(){
+        Mono<Cat> cat=Mono.just(new Cat("Barsik", 1));
+        Mono<String> name = cat.map(c -> c.getName());
+        Mono<Void> emptyMono=Mono
+                .fromRunnable(()->System.out.println("Выполним что-то без " +
+                "входных параметров и результата"));//fromRunnable- создает пустой моно после выполнения кода
+        emptyMono
+                .then(name)//then - испускает новый элемент,завершив текущий
+                .subscribe(n->System.out.println(n));
+
+        StepVerifier.create(emptyMono)
+                .expectComplete().verify();
+
+        StepVerifier.create(name)
+                .expectNext("Barsik")
+                .expectComplete().verify();
+
+    }
+
+    @Test
+
+    void handleError(){
+        Mono<Cat> cat=Mono.just(new Cat("Barsik", 1));
+        Mono<String> name = cat.map(c -> c.getName());
+
+        Mono<String> resultMono = name
+                .map(n -> n.concat("Test"))
+                .map(n -> {
+                    if (Objects.equals(n, "BarsikTest")) {
+                        throw new RuntimeException("Mono failed");
+                    }
+                    return n;
+                })
+                .onErrorReturn("BarsikAfterError");
+        resultMono.subscribe(n-> System.out.println(n));
+
+        StepVerifier.create(name)
+                .expectNext("Barsik")
+                .expectComplete();
+
+        StepVerifier.create(resultMono)
+                .expectNext("BarsikAfterError")
+                .expectComplete()
+
+//                .expectError(RuntimeException.class)
+//                .expectErrorMessage("Mono failed")
+                .verify();
+
     }
 }

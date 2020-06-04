@@ -8,6 +8,8 @@ import reactor.test.StepVerifier;
 
 import java.util.Objects;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 @SpringBootTest
 class ReactortestApplicationTests {
 
@@ -106,6 +108,31 @@ class ReactortestApplicationTests {
     }
 
     @Test
+    void checkThatCatchIsNotWorkForMono() {
+        Exception exception = assertThrows(RuntimeException.class, () -> method2().block());
+        System.out.println(exception.getMessage());
+    }
+
+    private Mono<Void> method2() {
+        try {
+            return submitOrder();
+        }
+        catch (RuntimeException e){
+            System.out.println("Catch error");
+            throw e;
+        }
+    }
+
+    private Mono<Void> submitOrder(){
+        return Mono.fromRunnable( ()-> {
+            throw new RuntimeException("Нет сообщения о том что отработал " +
+            "блок catch(Catch error)");
+        }
+        );
+    }
+
+
+    @Test
     void throwError() {
         Mono<Cat> cat = Mono.just(new Cat("Barsik", 1));
         Mono<String> name = cat.map(c -> c.getName());
@@ -126,6 +153,55 @@ class ReactortestApplicationTests {
         StepVerifier.create(resultMono)
 //                .expectError(RuntimeException.class)
                 .expectErrorMessage("Mono failed")
+                .verify();
+    }
+
+    @Test
+    void noCatchError() {
+
+        Mono<Cat> cat = Mono.just(new Cat("Barsik", 7));
+        Mono<Integer> age = cat.map(c -> c.getAge());
+        Mono<Integer> resultMono;
+        try {
+            //если мы пытаемся обработать ошибку в моно или флакс стандартным образом через try catch то блок catch
+            //не выполниться (в выводе консоли не увидите сообщение Catch error).
+            // Тут необходимо использовать реактивные методы doOnError, onErrorResume и т.п.
+            resultMono = age
+                    .map(n -> n + 3)
+                    .map(n -> n / 0);
+        } catch (ArithmeticException e) {
+            System.out.println("Catch error");
+            throw e;
+        }
+
+        StepVerifier.create(age)
+                .expectNext(7)
+                .expectComplete();
+
+        StepVerifier.create(resultMono)
+                .expectError(ArithmeticException.class)
+                .verify();
+
+        Exception exception = assertThrows(UnsupportedOperationException.class,
+                () -> resultMono.subscribe(a -> System.out.println(a)));
+        System.out.println(exception.getMessage());
+    }
+
+    @Test
+    void checkDoOnSuccess() {
+        Mono<Cat> cat = Mono.just(new Cat("Barsik", 7));
+        Mono<Integer> age = cat.map(c -> c.getAge());
+
+        Mono<Integer> resultMono = age
+                .map(n -> n + 3);
+
+        StepVerifier.create(age)
+                .expectNext(7)
+                .expectComplete();
+
+        StepVerifier.create(resultMono)
+                .expectNext(10)
+                .expectComplete()
                 .verify();
     }
 

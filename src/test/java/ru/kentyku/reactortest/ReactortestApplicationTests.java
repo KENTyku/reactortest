@@ -158,7 +158,6 @@ class ReactortestApplicationTests {
 
     @Test
     void noCatchError() {
-
         Mono<Cat> cat = Mono.just(new Cat("Barsik", 7));
         Mono<Integer> age = cat.map(c -> c.getAge());
         Mono<Integer> resultMono;
@@ -205,4 +204,35 @@ class ReactortestApplicationTests {
                 .verify();
     }
 
+    @Test
+    void checkSeveralMethodsTest() {
+        Mono<Cat> cat = Mono.just(new Cat("Barsik", 7));//age=7
+        Mono<Integer> age = cat.map(c -> c.getAge());
+
+        Mono<Integer> resultMono = age
+                .flatMap(n -> {
+
+                    return cat
+                            .map(c -> {
+                                c.setAge(c.getAge() + 3);//age=10
+                                return c;
+                            })
+                            .doOnNext(c -> System.out.println("doOnNext 1 " + (c.getAge() + 10)))
+                            .doOnNext(c->c.setAge(c.getAge() + 40)) //age=50
+                            .doOnNext(c -> System.out.println("doOnNext 2 " + (c.getAge() + 10000)));
+
+                })
+                .map(c->c.getAge()+1000);
+
+//        StepVerifier.create(age)
+//                .expectNext(7)
+//                .expectComplete();
+//
+//        StepVerifier.create(resultMono)
+//                .expectNext(1010)
+//                .expectComplete()
+//                .verify();
+
+        resultMono.subscribe(n-> System.out.println(n));
+    }
 }
